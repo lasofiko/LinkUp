@@ -1,7 +1,7 @@
 package domain
 
 type Profile struct {
-	UserId    int
+	UserID    int
 	City      string
 	Interests []Interest
 	Available bool

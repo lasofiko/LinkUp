@@ -15,10 +15,10 @@ func main() {
 	userUseCase := usecase.NewUserUseCase(userRepository)
 
 	user := domain.User{
-		ID:       1,
-		Name:     "Sofa",
-		Email:    "sofa@example.com",
-		City:     "Moscow",
+		ID:        1,
+		Name:      "Sofa",
+		Email:     "sofa@example.com",
+		City:      "Moscow",
 		Interests: []string{"Go", "Music", "Movies"},
 	}
 
