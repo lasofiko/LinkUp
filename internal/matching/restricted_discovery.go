@@ -8,10 +8,10 @@ import (
 
 func FilterRestrictedCandidates(
 	currentUserID int,
-	candidates []domain.User,
+	candidates []domain.Profile,
 	likedIDs []int,
 	matchedIDs []int,
-) []domain.User {
+) []domain.Profile {
 	excluded := make(map[int]struct{}, 1+len(likedIDs)+len(matchedIDs))
 
 	excluded[currentUserID] = struct{}{}
@@ -24,14 +24,14 @@ func FilterRestrictedCandidates(
 		excluded[id] = struct{}{}
 	}
 
-	result := make([]domain.User, 0, len(candidates))
+	result := make([]domain.Profile, 0, len(candidates))
 
 	for _, candidate := range candidates {
 		if !candidate.Available {
 			continue
 		}
 
-		if _, found := excluded[candidate.ID]; found {
+		if _, found := excluded[candidate.UserID]; found {
 			continue
 		}
 

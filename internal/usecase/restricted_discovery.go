@@ -1,56 +1,58 @@
 package usecase
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/lasofiko/LinkUp/internal/domain"
 	"github.com/lasofiko/LinkUp/internal/matching"
 )
 
-type DiscoveryUserSource interface {
-	GetAll() ([]domain.User, error)
+type RestrictedDiscoveryProfileSource interface {
+	ListProfiles(ctx context.Context) ([]domain.Profile, error)
 }
 
-type DiscoveryLikeSource interface {
-	GetLikedUserIDs(userID int) ([]int, error)
+type RestrictedDiscoveryLikeSource interface {
+	GetLikedUserIDs(ctx context.Context, userID int) ([]int, error)
 }
 
-type DiscoveryMatchSource interface {
-	GetMatchedUserIDs(userID int) ([]int, error)
+type RestrictedDiscoveryMatchSource interface {
+	GetMatchedUserIDs(ctx context.Context, userID int) ([]int, error)
 }
 
 type RestrictedDiscoveryService struct {
-	users   DiscoveryUserSource
-	likes   DiscoveryLikeSource
-	matches DiscoveryMatchSource
+	profiles RestrictedDiscoveryProfileSource
+	likes    RestrictedDiscoveryLikeSource
+	matches  RestrictedDiscoveryMatchSource
 }
 
 func NewRestrictedDiscoveryService(
-	users DiscoveryUserSource,
-	likes DiscoveryLikeSource,
-	matches DiscoveryMatchSource,
+	profiles RestrictedDiscoveryProfileSource,
+	likes RestrictedDiscoveryLikeSource,
+	matches RestrictedDiscoveryMatchSource,
 ) *RestrictedDiscoveryService {
 	return &RestrictedDiscoveryService{
-		users:   users,
-		likes:   likes,
-		matches: matches,
+		profiles: profiles,
+		likes:    likes,
+		matches:  matches,
 	}
 }
 
 func (s *RestrictedDiscoveryService) Discover(
+	ctx context.Context,
 	currentUserID int,
-) ([]domain.User, error) {
-	candidates, err := s.users.GetAll()
+) ([]domain.Profile, error) {
+	candidates, err := s.profiles.ListProfiles(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("get discovery candidates: %w", err)
+		return nil, fmt.Errorf("get discovery profiles: %w", err)
 	}
 
-	likedIDs, err := s.likes.GetLikedUserIDs(currentUserID)
+	likedIDs, err := s.likes.GetLikedUserIDs(ctx, currentUserID)
 	if err != nil {
 		return nil, fmt.Errorf("get liked users: %w", err)
 	}
 
-	matchedIDs, err := s.matches.GetMatchedUserIDs(currentUserID)
+	matchedIDs, err := s.matches.GetMatchedUserIDs(ctx, currentUserID)
 	if err != nil {
 		return nil, fmt.Errorf("get matched users: %w", err)
 	}

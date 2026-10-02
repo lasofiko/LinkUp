@@ -1,49 +1,73 @@
 package usecase
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
 	"testing"
 
 	"github.com/lasofiko/LinkUp/internal/domain"
+	"github.com/lasofiko/LinkUp/internal/repository/memory"
 )
 
-type discoveryStub struct {
-	users      []domain.User
+type restrictedDiscoveryStub struct {
+	profiles   []domain.Profile
 	likedIDs   []int
 	matchedIDs []int
 
-	usersErr   error
-	likesErr   error
-	matchesErr error
+	profilesErr error
+	likesErr    error
+	matchesErr  error
 
 	likesUserID   int
 	matchesUserID int
+
+	profilesContext context.Context
+	likesContext    context.Context
+	matchesContext  context.Context
 }
 
-func (s *discoveryStub) GetAll() ([]domain.User, error) {
-	return s.users, s.usersErr
+func (s *restrictedDiscoveryStub) ListProfiles(
+	ctx context.Context,
+) ([]domain.Profile, error) {
+	s.profilesContext = ctx
+	return s.profiles, s.profilesErr
 }
 
-func (s *discoveryStub) GetLikedUserIDs(userID int) ([]int, error) {
+func (s *restrictedDiscoveryStub) GetLikedUserIDs(
+	ctx context.Context,
+	userID int,
+) ([]int, error) {
+	s.likesContext = ctx
 	s.likesUserID = userID
 	return s.likedIDs, s.likesErr
 }
 
-func (s *discoveryStub) GetMatchedUserIDs(userID int) ([]int, error) {
+func (s *restrictedDiscoveryStub) GetMatchedUserIDs(
+	ctx context.Context,
+	userID int,
+) ([]int, error) {
+	s.matchesContext = ctx
 	s.matchesUserID = userID
 	return s.matchedIDs, s.matchesErr
 }
 
 func TestRestrictedDiscoveryServiceDiscover(t *testing.T) {
-	stub := &discoveryStub{
-		users: []domain.User{
-			{ID: 1, Available: true},
-			{ID: 2, Available: true, Interests: []string{"Go"}},
-			{ID: 3, Available: false},
-			{ID: 4, Available: true},
-			{ID: 5, Available: true},
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	stub := &restrictedDiscoveryStub{
+		profiles: []domain.Profile{
+			{UserID: 1, Available: true},
+			{
+				UserID:    2,
+				Available: true,
+				Interests: []domain.Interest{"Go"},
+			},
+			{UserID: 3, Available: false},
+			{UserID: 4, Available: true},
+			{UserID: 5, Available: true},
 		},
 		likedIDs:   []int{4},
 		matchedIDs: []int{5},
@@ -51,13 +75,17 @@ func TestRestrictedDiscoveryServiceDiscover(t *testing.T) {
 
 	service := NewRestrictedDiscoveryService(stub, stub, stub)
 
-	got, err := service.Discover(1)
+	got, err := service.Discover(ctx, 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	want := []domain.User{
-		{ID: 2, Available: true, Interests: []string{"Go"}},
+	want := []domain.Profile{
+		{
+			UserID:    2,
+			Available: true,
+			Interests: []domain.Interest{"Go"},
+		},
 	}
 
 	if !reflect.DeepEqual(got, want) {
@@ -65,26 +93,32 @@ func TestRestrictedDiscoveryServiceDiscover(t *testing.T) {
 	}
 
 	if stub.likesUserID != 1 || stub.matchesUserID != 1 {
-		t.Fatal("service passed an incorrect current user ID")
+		t.Fatal("incorrect current user ID passed to sources")
+	}
+
+	if stub.profilesContext != ctx ||
+		stub.likesContext != ctx ||
+		stub.matchesContext != ctx {
+		t.Fatal("service did not forward the caller's context")
 	}
 
 	got[0].Interests[0] = "Changed"
 
-	if stub.users[1].Interests[0] != "Go" {
+	if stub.profiles[1].Interests[0] != "Go" {
 		t.Fatal("service result changed source interests")
 	}
 }
 
 func TestRestrictedDiscoveryServiceEmptyResult(t *testing.T) {
-	stub := &discoveryStub{
-		users: []domain.User{
-			{ID: 1, Available: true},
+	stub := &restrictedDiscoveryStub{
+		profiles: []domain.Profile{
+			{UserID: 1, Available: true},
 		},
 	}
 
 	service := NewRestrictedDiscoveryService(stub, stub, stub)
 
-	got, err := service.Discover(1)
+	got, err := service.Discover(context.Background(), 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -95,7 +129,7 @@ func TestRestrictedDiscoveryServiceEmptyResult(t *testing.T) {
 }
 
 func TestRestrictedDiscoveryServiceSourceErrors(t *testing.T) {
-	for _, source := range []string{"users", "likes", "matches"} {
+	for _, source := range []string{"profiles", "likes", "matches"} {
 		for _, wrapped := range []bool{false, true} {
 			name := fmt.Sprintf("%s/wrapped=%t", source, wrapped)
 
@@ -107,11 +141,11 @@ func TestRestrictedDiscoveryServiceSourceErrors(t *testing.T) {
 					sourceErr = fmt.Errorf("repository: %w", rootErr)
 				}
 
-				stub := &discoveryStub{}
+				stub := &restrictedDiscoveryStub{}
 
 				switch source {
-				case "users":
-					stub.usersErr = sourceErr
+				case "profiles":
+					stub.profilesErr = sourceErr
 				case "likes":
 					stub.likesErr = sourceErr
 				case "matches":
@@ -124,7 +158,7 @@ func TestRestrictedDiscoveryServiceSourceErrors(t *testing.T) {
 					stub,
 				)
 
-				got, err := service.Discover(1)
+				got, err := service.Discover(context.Background(), 1)
 
 				if !errors.Is(err, rootErr) {
 					t.Fatalf("expected source error, got %v", err)
@@ -139,5 +173,49 @@ func TestRestrictedDiscoveryServiceSourceErrors(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestRestrictedDiscoveryServiceUsesSharedStores(t *testing.T) {
+	ctx := context.Background()
+
+	profiles := memory.NewProfiles([]domain.Profile{
+		{UserID: 1, Available: true},
+		{UserID: 2, Available: true},
+		{UserID: 3, Available: true},
+	})
+
+	likes := memory.NewLikes()
+	matches := memory.NewMatches()
+
+	service := NewRestrictedDiscoveryService(profiles, likes, matches)
+
+	before, err := service.Discover(ctx, 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	wantBefore := []domain.Profile{
+		{UserID: 2, Available: true},
+		{UserID: 3, Available: true},
+	}
+
+	if !reflect.DeepEqual(before, wantBefore) {
+		t.Fatalf("got %#v, want %#v", before, wantBefore)
+	}
+
+	likes.Add(1, 2)
+
+	if err := matches.Save(ctx, 3, 1); err != nil {
+		t.Fatalf("save match: %v", err)
+	}
+
+	after, err := service.Discover(ctx, 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if after == nil || len(after) != 0 {
+		t.Fatalf("expected empty result after store updates, got %#v", after)
 	}
 }

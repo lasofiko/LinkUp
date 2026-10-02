@@ -10,55 +10,55 @@ import (
 func TestFilterRestrictedCandidates(t *testing.T) {
 	tests := []struct {
 		name       string
-		candidates []domain.User
+		candidates []domain.Profile
 		likedIDs   []int
 		matchedIDs []int
 		wantIDs    []int
 	}{
 		{
 			name: "available candidate remains",
-			candidates: []domain.User{
-				{ID: 2, Available: true},
+			candidates: []domain.Profile{
+				{UserID: 2, Available: true},
 			},
 			wantIDs: []int{2},
 		},
 		{
 			name: "current user is excluded",
-			candidates: []domain.User{
-				{ID: 1, Available: true},
+			candidates: []domain.Profile{
+				{UserID: 1, Available: true},
 			},
 			wantIDs: []int{},
 		},
 		{
 			name: "unavailable candidate is excluded",
-			candidates: []domain.User{
-				{ID: 2, Available: false},
+			candidates: []domain.Profile{
+				{UserID: 2, Available: false},
 			},
 			wantIDs: []int{},
 		},
 		{
 			name: "liked candidate is excluded",
-			candidates: []domain.User{
-				{ID: 2, Available: true},
+			candidates: []domain.Profile{
+				{UserID: 2, Available: true},
 			},
 			likedIDs: []int{2},
 			wantIDs:  []int{},
 		},
 		{
 			name: "matched candidate is excluded",
-			candidates: []domain.User{
-				{ID: 2, Available: true},
+			candidates: []domain.Profile{
+				{UserID: 2, Available: true},
 			},
 			matchedIDs: []int{2},
 			wantIDs:    []int{},
 		},
 		{
 			name: "all candidates are excluded",
-			candidates: []domain.User{
-				{ID: 1, Available: true},
-				{ID: 2, Available: false},
-				{ID: 3, Available: true},
-				{ID: 4, Available: true},
+			candidates: []domain.Profile{
+				{UserID: 1, Available: true},
+				{UserID: 2, Available: false},
+				{UserID: 3, Available: true},
+				{UserID: 4, Available: true},
 			},
 			likedIDs:   []int{3},
 			matchedIDs: []int{4},
@@ -70,10 +70,10 @@ func TestFilterRestrictedCandidates(t *testing.T) {
 		},
 		{
 			name: "remaining candidates keep their order",
-			candidates: []domain.User{
-				{ID: 5, Available: true},
-				{ID: 3, Available: true},
-				{ID: 2, Available: true},
+			candidates: []domain.Profile{
+				{UserID: 5, Available: true},
+				{UserID: 3, Available: true},
+				{UserID: 2, Available: true},
 			},
 			likedIDs: []int{3},
 			wantIDs:  []int{5, 2},
@@ -95,7 +95,7 @@ func TestFilterRestrictedCandidates(t *testing.T) {
 
 			gotIDs := make([]int, 0, len(got))
 			for _, user := range got {
-				gotIDs = append(gotIDs, user.ID)
+				gotIDs = append(gotIDs, user.UserID)
 			}
 
 			if !reflect.DeepEqual(gotIDs, tt.wantIDs) {
@@ -106,16 +106,16 @@ func TestFilterRestrictedCandidates(t *testing.T) {
 }
 
 func TestFilterRestrictedCandidatesDoesNotMutateInput(t *testing.T) {
-	candidates := []domain.User{
-		{ID: 1, Available: true, Interests: []string{"Music"}},
-		{ID: 2, Available: true, Interests: []string{"Go", "Books"}},
-		{ID: 3, Available: true, Interests: []string{"Art"}},
+	candidates := []domain.Profile{
+		{UserID: 1, Available: true, Interests: []domain.Interest{"Music"}},
+		{UserID: 2, Available: true, Interests: []domain.Interest{"Go", "Books"}},
+		{UserID: 3, Available: true, Interests: []domain.Interest{"Art"}},
 	}
 
-	wantCandidates := []domain.User{
-		{ID: 1, Available: true, Interests: []string{"Music"}},
-		{ID: 2, Available: true, Interests: []string{"Go", "Books"}},
-		{ID: 3, Available: true, Interests: []string{"Art"}},
+	wantCandidates := []domain.Profile{
+		{UserID: 1, Available: true, Interests: []domain.Interest{"Music"}},
+		{UserID: 2, Available: true, Interests: []domain.Interest{"Go", "Books"}},
+		{UserID: 3, Available: true, Interests: []domain.Interest{"Art"}},
 	}
 
 	likedIDs := []int{3, 8}
@@ -140,11 +140,11 @@ func TestFilterRestrictedCandidatesDoesNotMutateInput(t *testing.T) {
 		t.Fatal("matched IDs changed during filtering")
 	}
 
-	if len(got) != 1 || got[0].ID != 2 {
+	if len(got) != 1 || got[0].UserID != 2 {
 		t.Fatalf("unexpected result: %#v", got)
 	}
 
-	got[0].Name = "Changed"
+	got[0].City = "Changed"
 	got[0].Interests[0] = "Changed"
 
 	if !reflect.DeepEqual(candidates, wantCandidates) {

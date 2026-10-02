@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -10,85 +11,91 @@ import (
 )
 
 func main() {
-	userRepository := memory.NewUserRepository()
+	ctx := context.Background()
 
-	userUseCase := usecase.NewUserUseCase(userRepository)
+	users := memory.NewUserRepository()
+	userService := usecase.NewUserUseCase(users)
 
 	user := domain.User{
-		ID:        1,
-		Name:      "Sofa",
-		Email:     "sofa@example.com",
-		City:      "Moscow",
-		Interests: []string{"Go", "Music", "Movies"},
-		Available: true,
+		ID:    1,
+		Name:  "Sofa",
+		Email: "sofa@example.com",
 	}
 
-	err := userUseCase.CreateUser(user)
-	if err != nil {
+	if err := userService.CreateUser(user); err != nil {
 		log.Fatal(err)
 	}
 
-	savedUser, err := userUseCase.GetUser(1)
+	savedUser, err := userService.GetUser(1)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	fmt.Println("LinkUp demo")
-	fmt.Println("User successfully created")
 	fmt.Printf(
-		"ID: %d | Name: %s | Email: %s | City: %s\n",
+		"User: ID=%d | Name=%s | Email=%s\n",
 		savedUser.ID,
 		savedUser.Name,
 		savedUser.Email,
-		savedUser.City,
 	)
-	candidates := []domain.User{
+
+	profiles := memory.NewProfiles([]domain.Profile{
 		{
-			ID:        2,
-			Name:      "Available candidate",
+			UserID:    1,
+			City:      "Moscow",
 			Available: true,
-			Interests: []string{"Go"},
+			Interests: []domain.Interest{"Go", "Music"},
 		},
 		{
-			ID:        3,
-			Name:      "Unavailable candidate",
+			UserID:    2,
+			City:      "Moscow",
+			Available: true,
+			Interests: []domain.Interest{"Go"},
+		},
+		{
+			UserID:    3,
+			City:      "Moscow",
 			Available: false,
 		},
 		{
-			ID:        4,
-			Name:      "Already liked candidate",
+			UserID:    4,
+			City:      "Moscow",
 			Available: true,
 		},
 		{
-			ID:        5,
-			Name:      "Matched candidate",
+			UserID:    5,
+			City:      "Moscow",
 			Available: true,
 		},
-	}
+	})
 
-	for _, candidate := range candidates {
-		if err := userUseCase.CreateUser(candidate); err != nil {
-			log.Fatal(err)
-		}
-	}
+	likes := memory.NewLikes()
+	matches := memory.NewMatches()
 
-	restrictions := memory.NewDiscoveryRepository()
-	restrictions.AddLike(1, 4)
-	restrictions.AddMatch(1, 5)
+	likes.Add(1, 4)
+
+	if err := matches.Save(ctx, 1, 5); err != nil {
+		log.Fatal(err)
+	}
 
 	discovery := usecase.NewRestrictedDiscoveryService(
-		userRepository,
-		restrictions,
-		restrictions,
+		profiles,
+		likes,
+		matches,
 	)
 
-	result, err := discovery.Discover(1)
+	result, err := discovery.Discover(ctx, 1)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	ids := make([]int, 0, len(result))
+	for _, profile := range result {
+		ids = append(ids, profile.UserID)
 	}
 
 	fmt.Println()
 	fmt.Println("Contract B: restricted discovery")
 	fmt.Println("Expected candidate IDs: [2]")
-	fmt.Printf("Actual candidates: %+v\n", result)
+	fmt.Printf("Actual candidate IDs: %v\n", ids)
 }

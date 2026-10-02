@@ -1,43 +1,61 @@
 package memory
 
-import "slices"
+import (
+	"context"
+	"slices"
+)
 
-type DiscoveryRepository struct {
-	likes   map[int][]int
-	matches map[int][]int
-}
-
-func NewDiscoveryRepository() *DiscoveryRepository {
-	return &DiscoveryRepository{
-		likes:   make(map[int][]int),
-		matches: make(map[int][]int),
-	}
-}
-
-func (r *DiscoveryRepository) AddLike(fromID, toID int) {
-	if !slices.Contains(r.likes[fromID], toID) {
-		r.likes[fromID] = append(r.likes[fromID], toID)
-	}
-}
-
-func (r *DiscoveryRepository) AddMatch(firstID, secondID int) {
-	if !slices.Contains(r.matches[firstID], secondID) {
-		r.matches[firstID] = append(r.matches[firstID], secondID)
-	}
-
-	if !slices.Contains(r.matches[secondID], firstID) {
-		r.matches[secondID] = append(r.matches[secondID], firstID)
-	}
-}
-
-func (r *DiscoveryRepository) GetLikedUserIDs(
+func (l *Likes) GetLikedUserIDs(
+	ctx context.Context,
 	userID int,
 ) ([]int, error) {
-	return slices.Clone(r.likes[userID]), nil
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
+	result := make([]int, 0)
+
+	for pair, exists := range l.likes {
+		if exists && pair[0] == userID {
+			result = append(result, pair[1])
+		}
+	}
+
+	slices.Sort(result)
+
+	return result, nil
 }
 
-func (r *DiscoveryRepository) GetMatchedUserIDs(
+func (m *Matches) GetMatchedUserIDs(
+	ctx context.Context,
 	userID int,
 ) ([]int, error) {
-	return slices.Clone(r.matches[userID]), nil
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	result := make([]int, 0)
+
+	for match, exists := range m.matches {
+		if !exists {
+			continue
+		}
+
+		switch {
+		case match.User1ID == userID:
+			result = append(result, match.User2ID)
+		case match.User2ID == userID:
+			result = append(result, match.User1ID)
+		}
+	}
+
+	slices.Sort(result)
+
+	return result, nil
 }
