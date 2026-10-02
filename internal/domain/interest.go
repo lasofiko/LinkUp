@@ -1,11 +1,6 @@
 package domain
 
-import (
-	"errors"
-	"strings"
-)
-
-var ErrEmptyInterest = errors.New("interest must not be empty")
+import "strings"
 
 type Interest string
 

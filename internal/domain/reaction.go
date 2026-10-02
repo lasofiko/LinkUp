@@ -1,12 +1,5 @@
 package domain
 
-import "errors"
-
-var (
-	ErrSelfReaction        = errors.New("cannot react to yourself")
-	ErrInvalidReactionType = errors.New("invalid reaction type")
-)
-
 type ReactionType string
 
 const (

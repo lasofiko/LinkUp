@@ -1,9 +1,5 @@
 package domain
 
-import "errors"
-
-var ErrSelfMatch = errors.New("cannot create match with yourself")
-
 type Match struct {
 	User1ID int
 	User2ID int
