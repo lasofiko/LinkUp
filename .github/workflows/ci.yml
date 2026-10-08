@@ -24,6 +24,13 @@ jobs:
       - name: Build
         run: go build ./...
 
+      - name: Check formatting
+        shell: bash
+        run: |
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          files="$(git diff --name-only --diff-filter=ACMR "$base" "$GITHUB_SHA" -- '*.go')"
+          test -z "$files" || test -z "$(gofmt -l $files)"
+
       - name: Test
         run: go test ./...
 
