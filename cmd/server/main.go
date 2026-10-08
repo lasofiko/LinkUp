@@ -26,6 +26,16 @@ func main() {
 		log.Fatal(err)
 	}
 
+	candidate := domain.User{
+		ID:    2,
+		Name:  "olga",
+		Email: "olga@example.com",
+	}
+
+	if err := userService.CreateUser(candidate); err != nil {
+		log.Fatal(err)
+	}
+
 	savedUser, err := userService.GetUser(1)
 	if err != nil {
 		log.Fatal(err)
@@ -71,6 +81,21 @@ func main() {
 
 	likes := memory.NewLikes()
 	matches := memory.NewMatches()
+
+	eligibilityService := usecase.NewCandidateEligibilityService(
+		users,
+		profiles,
+		likes,
+	)
+
+	status, err := eligibilityService.Check(ctx, 1, 2)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println()
+	fmt.Println("Contract C: candidate eligibility")
+	fmt.Printf("Eligibility 1 -> 2: %s\n", status)
 
 	likes.Add(1, 4)
 
