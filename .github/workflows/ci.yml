@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -28,7 +30,11 @@ jobs:
         shell: bash
         run: |
           base="${{ github.event.pull_request.base.sha || github.event.before }}"
-          files="$(git diff --name-only --diff-filter=ACMR "$base" "$GITHUB_SHA" -- '*.go')"
+          if [[ "$base" == "0000000000000000000000000000000000000000" ]]; then
+            files="$(git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA" -- '*.go')"
+          else
+            files="$(git diff --name-only --diff-filter=ACMR "$base" "$GITHUB_SHA" -- '*.go')"
+          fi
           test -z "$files" || test -z "$(gofmt -l $files)"
 
       - name: Test
