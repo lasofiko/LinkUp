@@ -24,8 +24,6 @@ jobs:
       - name: Build
         run: go build ./...
 
-<<<<<<< Updated upstream
-=======
       - name: Check formatting
         shell: bash
         run: |
@@ -37,7 +35,6 @@ jobs:
           fi
           test -z "$files" || test -z "$(gofmt -l $files)"
 
->>>>>>> Stashed changes
       - name: Test
         run: go test ./...
 
