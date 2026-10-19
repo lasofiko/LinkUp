@@ -6,7 +6,7 @@ go-checks:
   image: golang:1.27.1
   script:
     - |
-      unformatted="$(gofmt -l internal/usecase/pair_discovery.go internal/usecase/pair_discovery_test.go)"
+      unformatted="$(gofmt -l .)" || exit 1
       if [ -n "$unformatted" ]; then
         echo "Go files need formatting:"
         echo "$unformatted"
