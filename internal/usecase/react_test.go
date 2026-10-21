@@ -222,3 +222,25 @@ func TestReactWithExistingUserAndProfileRepositories(t *testing.T) {
 		}
 	}
 }
+
+func TestReactWithMemoryRepositoryMissingUser(t *testing.T) {
+	users := memory.NewUserRepository()
+	profiles := memory.NewProfiles(nil)
+	store := newReactFixture()
+
+	service := NewReactService(users, profiles, store)
+
+	got, err := service.React(context.Background(), 1, 2)
+
+	if !errors.Is(err, domain.ErrUserNotFound) {
+		t.Fatalf("expected ErrUserNotFound, got %v", err)
+	}
+
+	if got != (interaction.State{}) {
+		t.Fatalf("expected zero state, got %#v", got)
+	}
+
+	if store.saves != 0 {
+		t.Fatalf("expected no saves, got %d", store.saves)
+	}
+}
