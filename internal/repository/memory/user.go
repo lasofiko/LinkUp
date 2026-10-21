@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	ErrUserNotFound      = errors.New("user not found")
+	ErrUserNotFound      = domain.ErrUserNotFound
 	ErrUserAlreadyExists = errors.New("user already exists")
 )
 
