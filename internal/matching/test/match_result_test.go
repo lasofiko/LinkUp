@@ -1,9 +1,15 @@
-package matching
+package matching_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/lasofiko/LinkUp/internal/matching"
+)
 
 func TestDetermineMatch_NoLikes(t *testing.T) {
-	if got := DetermineMatch(false, false, false); got != NoMatch {
+	got := matching.DetermineMatch(false, false, false)
+
+	if got != matching.NoMatch {
 		t.Fatalf("want NoMatch, got %v", got)
 	}
 }
@@ -14,12 +20,27 @@ func TestDetermineMatch_LikeOnlyOneWay(t *testing.T) {
 		userLikedOther bool
 		otherLikedUser bool
 	}{
-		{"A liked B only", true, false},
-		{"B liked A only", false, true},
+		{
+			name:           "A liked B only",
+			userLikedOther: true,
+			otherLikedUser: false,
+		},
+		{
+			name:           "B liked A only",
+			userLikedOther: false,
+			otherLikedUser: true,
+		},
 	}
+
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := DetermineMatch(tc.userLikedOther, tc.otherLikedUser, false); got != NoMatch {
+			got := matching.DetermineMatch(
+				tc.userLikedOther,
+				tc.otherLikedUser,
+				false,
+			)
+
+			if got != matching.NoMatch {
 				t.Fatalf("want NoMatch, got %v", got)
 			}
 		})
@@ -27,27 +48,35 @@ func TestDetermineMatch_LikeOnlyOneWay(t *testing.T) {
 }
 
 func TestDetermineMatch_MutualLikes(t *testing.T) {
-	if got := DetermineMatch(true, true, false); got != MatchCreated {
+	got := matching.DetermineMatch(true, true, false)
+
+	if got != matching.MatchCreated {
 		t.Fatalf("want MatchCreated, got %v", got)
 	}
 }
 
 func TestDetermineMatch_ExistingMatch(t *testing.T) {
-	if got := DetermineMatch(true, true, true); got != ExistingMatch {
+	got := matching.DetermineMatch(true, true, true)
+
+	if got != matching.ExistingMatch {
 		t.Fatalf("want ExistingMatch, got %v", got)
 	}
 }
 
 func TestDetermineMatch_ExistingMatchWithoutLikes(t *testing.T) {
-	if got := DetermineMatch(false, false, true); got != ExistingMatch {
+	got := matching.DetermineMatch(false, false, true)
+
+	if got != matching.ExistingMatch {
 		t.Fatalf("want ExistingMatch, got %v", got)
 	}
 }
 
 func TestDetermineMatch_DoesNotModifyInput(t *testing.T) {
 	a, b, c := true, false, true
-	_ = DetermineMatch(a, b, c)
-	if a != true || b != false || c != true {
-		t.Fatalf("input must not be modified")
+
+	_ = matching.DetermineMatch(a, b, c)
+
+	if !a || b || !c {
+		t.Fatal("input must not be modified")
 	}
 }
