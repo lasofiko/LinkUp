@@ -244,3 +244,65 @@ func TestReactWithMemoryRepositoryMissingUser(t *testing.T) {
 		t.Fatalf("expected no saves, got %d", store.saves)
 	}
 }
+
+func TestReactWithRealMemoryAfterSaveFailure(t *testing.T) {
+	ctx := context.Background()
+
+	users := memory.NewUserRepository()
+	for _, id := range []int{1, 2} {
+		if err := users.Create(domain.User{ID: id}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	profiles := memory.NewProfiles([]domain.Profile{
+		{UserID: 1, Available: true},
+		{UserID: 2, Available: true},
+	})
+
+	store := interaction.NewMemory()
+	pair, err := interaction.NewPair(1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	saveErr := errors.New("save failed")
+	failingStore := interaction.FailingSave{
+		Memory: store,
+		Err:    saveErr,
+	}
+
+	failingService := NewReactService(users, profiles, failingStore)
+
+	got, err := failingService.React(ctx, 1, 2)
+	if got != (interaction.State{}) || !errors.Is(err, saveErr) {
+		t.Fatalf("failed Save: state=%#v, err=%v", got, err)
+	}
+
+	saved, found, err := store.Load(pair)
+	if err != nil || found || saved != (interaction.State{}) {
+		t.Fatalf("state changed after failed Save: %#v", saved)
+	}
+
+	service := NewReactService(users, profiles, store)
+
+	got, err = service.React(ctx, 1, 2)
+	if err != nil || !got.HasLike(1, 2) || got.IsMutual() {
+		t.Fatalf("retry failed: state=%#v, err=%v", got, err)
+	}
+
+	saved, found, err = store.Load(pair)
+	if err != nil || !found || saved != got {
+		t.Fatalf("state not saved: %#v, err=%v", saved, err)
+	}
+
+	repeated, err := failingService.React(ctx, 1, 2)
+	if err != nil || repeated != got {
+		t.Fatalf("repeat changed state: %#v, err=%v", repeated, err)
+	}
+
+	after, found, err := store.Load(pair)
+	if err != nil || !found || after != saved {
+		t.Fatalf("state changed after repeat: %#v", after)
+	}
+}
