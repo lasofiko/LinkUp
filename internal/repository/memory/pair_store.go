@@ -8,10 +8,6 @@ import (
 
 var ErrPairStoreNotImplemented = errors.New("memory pair store is not implemented")
 
-// PairStore is the single shared store for ReactService, PairDiscoveryService
-// and pair reads. Do not use the legacy Likes and Matches as a second truth.
-// TODO(Арина): implement concurrency-safe Load and Save, and arrange an
-// atomic read/transition/write path for concurrent React calls.
 type PairStore struct{}
 
 func NewPairStore() *PairStore { return &PairStore{} }

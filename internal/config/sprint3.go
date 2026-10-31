@@ -24,6 +24,4 @@ type Config struct {
 	ProfileMaxBody int64
 }
 
-// TODO(Арина): parse and validate environment values and supply defaults
-// agreed in docs/sprint-3-api-contract.md.
 func Load() (Config, error) { return Config{}, ErrNotImplemented }
