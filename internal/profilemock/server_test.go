@@ -138,7 +138,6 @@ func TestInvalidMode(t *testing.T) {
 		t.Fatalf("status = %d, want 400", recorder.Code)
 	}
 
-	// Некорректный режим не должен изменить исходный ok.
 	req = httptest.NewRequest(
 		http.MethodGet,
 		"/v1/profiles/2",

@@ -120,7 +120,9 @@ func (c *Client) GetProfile(
 	if err != nil {
 		return domain.Profile{}, classifyRequestError(ctx, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode == http.StatusNotFound {
 		return domain.Profile{}, fmt.Errorf(

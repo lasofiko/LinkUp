@@ -353,7 +353,9 @@ func setMockMode(
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf(
@@ -415,7 +417,6 @@ func TestReactServiceDependencyFailures(t *testing.T) {
 		})
 	}
 
-	// Восстановление зависимости.
 	setMockMode(t, server, "ok")
 
 	state, err := reactions.React(context.Background(), 1, 2)
@@ -427,7 +428,6 @@ func TestReactServiceDependencyFailures(t *testing.T) {
 		t.Fatal("successful like was not saved")
 	}
 
-	// Повторный лайк не должен создавать новую запись.
 	_, err = reactions.React(context.Background(), 1, 2)
 	if err != nil {
 		t.Fatal(err)

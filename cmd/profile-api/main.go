@@ -38,7 +38,7 @@ func run() error {
 
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
-		return fmt.Errorf("start Profile API: %w", err)
+		return fmt.Errorf("profile start API: %w", err)
 	}
 
 	ctx, stop := signal.NotifyContext(
@@ -61,7 +61,7 @@ func run() error {
 		if errors.Is(err, http.ErrServerClosed) {
 			return nil
 		}
-		return fmt.Errorf("Profile API server: %w", err)
+		return fmt.Errorf("profile API server: %w", err)
 
 	case <-ctx.Done():
 		stop()
@@ -75,12 +75,12 @@ func run() error {
 
 		if err := server.Shutdown(shutdownCtx); err != nil {
 			_ = server.Close()
-			return fmt.Errorf("Profile API shutdown: %w", err)
+			return fmt.Errorf("profile API shutdown: %w", err)
 		}
 
 		if err := <-serverErrors; err != nil &&
 			!errors.Is(err, http.ErrServerClosed) {
-			return fmt.Errorf("Profile API server: %w", err)
+			return fmt.Errorf("profile API server: %w", err)
 		}
 
 		log.Println("Profile API stopped")
