@@ -146,7 +146,3 @@ func PairHandler(pairs Pairs) http.Handler {
 		writeJSON(w, http.StatusOK, pairDTO(userID, targetID, state))
 	})
 }
-
-func writeNotImplemented(w http.ResponseWriter) {
-	writeError(w, http.StatusNotImplemented, "not_implemented", "sprint 3 handler is not implemented")
-}
