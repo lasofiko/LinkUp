@@ -7,16 +7,13 @@ import (
 	"github.com/lasofiko/LinkUp/internal/interaction"
 )
 
-
 type Discovery interface {
 	Discover(ctx context.Context, userID int) ([]domain.Profile, error)
 }
 
-
 type Reactions interface {
 	React(ctx context.Context, fromUserID, toUserID int) (interaction.State, error)
 }
-
 
 type Pairs interface {
 	Load(pair interaction.Pair) (interaction.State, bool, error)
