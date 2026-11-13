@@ -52,9 +52,8 @@ func emptyBody(r *http.Request) bool {
 	if r.Body == nil {
 		return true
 	}
-	var b [1]byte
-	n, err := r.Body.Read(b[:])
-	return n == 0 && (err == nil || errors.Is(err, io.EOF))
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1))
+	return err == nil && len(body) == 0
 }
 
 func pairDTO(userID, targetID int, state interaction.State) PairResponse {
