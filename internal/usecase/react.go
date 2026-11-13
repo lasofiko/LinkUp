@@ -11,6 +11,14 @@ import (
 
 var ErrReactionUnavailable = errors.New("reaction is unavailable")
 
+type PairCommander interface {
+	Update(
+		ctx context.Context,
+		pair interaction.Pair,
+		apply func(interaction.State) (interaction.State, bool, error),
+	) (interaction.State, error)
+}
+
 type ReactService struct {
 	users    EligibilityUserReader
 	profiles EligibilityProfileReader
@@ -43,22 +51,36 @@ func (s *ReactService) React(ctx context.Context, fromUserID, toUserID int) (int
 	if err != nil {
 		return interaction.State{}, fmt.Errorf("create reaction pair: %w", err)
 	}
+
+	apply := func(state interaction.State) (interaction.State, bool, error) {
+		if state.Pair != (interaction.Pair{}) && state.Pair != pair {
+			return interaction.State{}, false, fmt.Errorf("load reaction pair %v: %w", pair, interaction.ErrStatePair)
+		}
+		status := domain.CheckCandidateEligibility(user.ID, profile, state.HasLike(user.ID, candidate.ID))
+		if status == domain.EligibilityUnavailable {
+			return interaction.State{}, false, fmt.Errorf("reaction %d -> %d: %w", user.ID, candidate.ID, ErrReactionUnavailable)
+		}
+		return interaction.ApplyLike(state, user.ID, candidate.ID)
+	}
+
+	if commander, ok := s.store.(PairCommander); ok {
+		next, err := commander.Update(ctx, pair, apply)
+		if err != nil {
+			return interaction.State{}, err
+		}
+		return next, nil
+	}
+
 	state, found, err := s.store.Load(pair)
 	if err != nil {
 		return interaction.State{}, fmt.Errorf("load reaction pair %v: %w", pair, err)
 	}
 	if !found {
 		state = interaction.State{}
-	} else if state.Pair != pair {
-		return interaction.State{}, fmt.Errorf("load reaction pair %v: %w", pair, interaction.ErrStatePair)
 	}
-	status := domain.CheckCandidateEligibility(user.ID, profile, state.HasLike(user.ID, candidate.ID))
-	if status == domain.EligibilityUnavailable {
-		return interaction.State{}, fmt.Errorf("reaction %d -> %d: %w", user.ID, candidate.ID, ErrReactionUnavailable)
-	}
-	next, changed, err := interaction.ApplyLike(state, user.ID, candidate.ID)
+	next, changed, err := apply(state)
 	if err != nil {
-		return interaction.State{}, fmt.Errorf("apply reaction: %w", err)
+		return interaction.State{}, err
 	}
 	if changed {
 		if err := ctx.Err(); err != nil {
