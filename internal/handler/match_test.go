@@ -14,6 +14,7 @@ import (
 	"github.com/lasofiko/LinkUp/internal/domain"
 	"github.com/lasofiko/LinkUp/internal/interaction"
 	"github.com/lasofiko/LinkUp/internal/profileclient"
+	"github.com/lasofiko/LinkUp/internal/repository/memory"
 	"github.com/lasofiko/LinkUp/internal/usecase"
 )
 
@@ -142,12 +143,17 @@ func TestPairHTTPValidation(t *testing.T) {
 		{"zero ID", "PUT", "/v1/me/likes/0", "1", "", 400, "invalid_request"},
 		{"leading zero", "GET", "/v1/me/pairs/02", "1", "", 400, "invalid_request"},
 		{"signed ID", "PUT", "/v1/me/likes/+2", "1", "", 400, "invalid_request"},
+		{"negative ID", "GET", "/v1/me/pairs/-2", "1", "", 400, "invalid_request"},
+		{"text ID", "PUT", "/v1/me/likes/abc", "1", "", 400, "invalid_request"},
 		{"overflow", "GET", "/v1/me/pairs/999999999999999999999999999", "1", "", 400, "invalid_request"},
 		{"missing user", "PUT", "/v1/me/likes/2", "", "", 400, "invalid_request"},
+		{"missing user on read", "GET", "/v1/me/pairs/2", "", "", 400, "invalid_request"},
 		{"extra body", "PUT", "/v1/me/likes/2", "1", "{}", 400, "invalid_request"},
+		{"whitespace body", "PUT", "/v1/me/likes/2", "1", " ", 400, "invalid_request"},
 		{"extra query", "GET", "/v1/me/pairs/2?user_id=2", "1", "", 400, "invalid_request"},
 		{"self like", "PUT", "/v1/me/likes/1", "1", "", 409, "invalid_transition"},
 		{"self pair", "GET", "/v1/me/pairs/1", "1", "", 409, "invalid_transition"},
+		{"missing target", "PUT", "/v1/me/likes/3", "1", "", 404, "not_found"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			status, _, apiErr := pairRequest(t, h, tt.method, tt.path, tt.user, tt.body)
@@ -161,6 +167,24 @@ func TestPairHTTPValidation(t *testing.T) {
 	}
 }
 
+func TestPairHTTPReadDoesNotReact(t *testing.T) {
+	f := newHTTPReactFixture()
+	f.profileErr = errors.New("profiles must not be read by GET")
+	status, pair, _ := pairRequest(t, testPairMux(f), "GET", "/v1/me/pairs/3", "1", "")
+	if status != http.StatusOK || pair != (PairResponse{TargetID: 3}) || f.saves != 0 {
+		t.Fatalf("status=%d pair=%+v saves=%d", status, pair, f.saves)
+	}
+}
+
+func TestPairHTTPUnavailableCandidate(t *testing.T) {
+	f := newHTTPReactFixture()
+	f.profiles[2] = domain.Profile{UserID: 2, Available: false}
+	status, _, apiErr := pairRequest(t, testPairMux(f), "PUT", "/v1/me/likes/2", "1", "")
+	if status != http.StatusForbidden || apiErr.Code != "reaction_unavailable" || f.saves != 0 {
+		t.Fatalf("status=%d error=%+v saves=%d", status, apiErr, f.saves)
+	}
+}
+
 func TestPairHTTPWrappedErrors(t *testing.T) {
 	for _, tt := range []struct {
 		name   string
@@ -170,6 +194,8 @@ func TestPairHTTPWrappedErrors(t *testing.T) {
 	}{
 		{"unavailable", usecase.ErrReactionUnavailable, 403, "reaction_unavailable"},
 		{"missing profile", domain.ErrProfileNotFound, 404, "not_found"},
+		{"missing domain user", domain.ErrUserNotFound, 404, "not_found"},
+		{"missing memory user", memory.ErrUserNotFound, 404, "not_found"},
 		{"dependency", profileclient.ErrDependency, 502, "dependency_failure"},
 		{"dependency timeout", profileclient.ErrTimeout, 504, "dependency_timeout"},
 		{"typed timeout", fmt.Errorf("%w: %w", profileclient.ErrDependency, &net.DNSError{IsTimeout: true}), 504, "dependency_timeout"},

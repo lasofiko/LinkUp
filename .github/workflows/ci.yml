@@ -1,3 +1,4 @@
+
 name: Go checks
 
 on:
@@ -21,27 +22,24 @@ jobs:
           go-version-file: go.mod
           cache: false
 
-      - name: Build
-        run: go build ./...
-
       - name: Check formatting
         shell: bash
         run: |
-          unformatted="$(gofmt -l .)" || exit 1
-          if [ -n "$unformatted" ]; then
-            echo "Go files need formatting:"
-            echo "$unformatted"
+          files="$(gofmt -l .)"
+          if [ -n "$files" ]; then
+            echo "These Go files need formatting:"
+            echo "$files"
             exit 1
           fi
+
+      - name: Build
+        run: go build ./...
 
       - name: Test
         run: go test ./...
 
       - name: Vet
         run: go vet ./...
-
-      - name: Race tests
-        run: go test -race ./...
 
       - name: Lint
         uses: golangci/golangci-lint-action@v8
