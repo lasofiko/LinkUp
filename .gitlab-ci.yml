@@ -1,0 +1,18 @@
+stages:
+  - test
+
+go-checks:
+  stage: test
+  image: golang:1.27.1
+  script:
+    - |
+      unformatted="$(gofmt -l .)" || exit 1
+      if [ -n "$unformatted" ]; then
+        echo "Go files need formatting:"
+        echo "$unformatted"
+        exit 1
+      fi
+    - go build ./...
+    - go test ./...
+    - go vet ./...
+    - go test -race ./...
