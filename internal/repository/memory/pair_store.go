@@ -15,13 +15,13 @@ var errStateWithoutPair = errors.New("state has no pair")
 type PairStore struct {
 	mu     sync.RWMutex
 	states map[interaction.Pair]interaction.State
-	locks  map[interaction.Pair]*sync.Mutex
+	locks  map[interaction.Pair]chan struct{}
 }
 
 func NewPairStore() *PairStore {
 	return &PairStore{
 		states: make(map[interaction.Pair]interaction.State),
-		locks:  make(map[interaction.Pair]*sync.Mutex),
+		locks:  make(map[interaction.Pair]chan struct{}),
 	}
 }
 
@@ -51,8 +51,12 @@ func (s *PairStore) Update(
 	apply func(interaction.State) (interaction.State, bool, error),
 ) (interaction.State, error) {
 	lock := s.lockFor(pair)
-	lock.Lock()
-	defer lock.Unlock()
+	select {
+	case <-ctx.Done():
+		return interaction.State{}, ctx.Err()
+	case <-lock:
+	}
+	defer func() { lock <- struct{}{} }()
 
 	if err := ctx.Err(); err != nil {
 		return interaction.State{}, err
@@ -83,16 +87,29 @@ func (s *PairStore) Update(
 	return next, nil
 }
 
-func (s *PairStore) lockFor(pair interaction.Pair) *sync.Mutex {
+func (s *PairStore) lockFor(pair interaction.Pair) chan struct{} {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	lock, ok := s.locks[pair]
 	if !ok {
-		lock = &sync.Mutex{}
+		lock = make(chan struct{}, 1)
+		lock <- struct{}{}
 		s.locks[pair] = lock
 	}
 	return lock
+}
+
+// Block uses the same pair lock as ReactService.Update. Repeating it is a no-op.
+func (s *PairStore) Block(ctx context.Context, pair interaction.Pair) (interaction.State, error) {
+	return s.Update(ctx, pair, func(state interaction.State) (interaction.State, bool, error) {
+		if state.Blocked {
+			return state, false, nil
+		}
+		state.Pair = pair
+		state.Blocked = true
+		return state, true, nil
+	})
 }
 
 var _ interaction.Store = (*PairStore)(nil)

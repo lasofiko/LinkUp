@@ -19,6 +19,16 @@ type Pairs interface {
 	Load(pair interaction.Pair) (interaction.State, bool, error)
 }
 
+type Blocks interface {
+	Block(ctx context.Context, actorID, targetID int) (interaction.State, error)
+}
+
+type BlockResponse struct {
+	TargetID int  `json:"target_id"`
+	Blocked  bool `json:"blocked"`
+	Mutual   bool `json:"mutual"`
+}
+
 type DiscoveryItem struct {
 	UserID    int      `json:"user_id"`
 	City      string   `json:"city"`

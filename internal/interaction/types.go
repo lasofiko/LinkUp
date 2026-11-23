@@ -30,6 +30,7 @@ type State struct {
 	Pair             Pair
 	FirstLikesSecond bool
 	SecondLikesFirst bool
+	Blocked          bool
 }
 
 func (s State) HasLike(fromUserID, toUserID int) bool {
@@ -43,7 +44,7 @@ func (s State) HasLike(fromUserID, toUserID int) bool {
 }
 
 func (s State) IsMutual() bool {
-	return s.FirstLikesSecond && s.SecondLikesFirst
+	return !s.Blocked && s.FirstLikesSecond && s.SecondLikesFirst
 }
 
 // Reader is the only dependency needed by candidate filtering (contract B).

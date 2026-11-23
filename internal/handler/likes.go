@@ -77,6 +77,8 @@ func writeError(w http.ResponseWriter, status int, code, message string) {
 
 func writeHandlerError(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, usecase.ErrPairBlocked):
+		writeError(w, http.StatusForbidden, "pair_blocked", "pair is blocked")
 	case errors.Is(err, usecase.ErrReactionUnavailable):
 		writeError(w, http.StatusForbidden, "reaction_unavailable", "reaction is unavailable")
 	case errors.Is(err, domain.ErrUserNotFound), errors.Is(err, memory.ErrUserNotFound), errors.Is(err, domain.ErrProfileNotFound):

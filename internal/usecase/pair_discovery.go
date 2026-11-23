@@ -52,7 +52,7 @@ func FilterPairCandidates(userID int, candidates []domain.Profile, pairs interac
 			if state.Pair != pair {
 				return nil, fmt.Errorf("load discovery pair %v: %w", pair, interaction.ErrStatePair)
 			}
-			if state.HasLike(userID, candidate.UserID) || state.IsMutual() {
+			if state.Blocked || state.HasLike(userID, candidate.UserID) || state.IsMutual() {
 				continue
 			}
 		}

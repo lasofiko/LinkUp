@@ -54,6 +54,7 @@ func run() error {
 	}
 
 	reactService := usecase.NewReactService(users, profileClient, pairStore)
+	blockService := usecase.NewBlockService(users, pairStore)
 	discoveryService := usecase.NewPairDiscoveryService(
 		matching.NewDiscoveryService(profiles),
 		pairStore,
@@ -63,6 +64,7 @@ func run() error {
 	mux.Handle("GET /v1/me/discovery", handler.DiscoveryHandler(discoveryService))
 	mux.Handle("PUT /v1/me/likes/{targetID}", handler.LikeHandler(reactService))
 	mux.Handle("GET /v1/me/pairs/{targetID}", handler.PairHandler(pairStore))
+	mux.Handle("PUT /v1/me/blocks/{targetID}", handler.BlockHandler(blockService))
 
 	var root http.Handler = mux
 	root = handler.IdentityMiddleware(root)
