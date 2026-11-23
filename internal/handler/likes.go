@@ -52,9 +52,8 @@ func emptyBody(r *http.Request) bool {
 	if r.Body == nil {
 		return true
 	}
-	var b [1]byte
-	n, err := r.Body.Read(b[:])
-	return n == 0 && (err == nil || errors.Is(err, io.EOF))
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1))
+	return err == nil && len(body) == 0
 }
 
 func pairDTO(userID, targetID int, state interaction.State) PairResponse {
@@ -145,8 +144,4 @@ func PairHandler(pairs Pairs) http.Handler {
 		}
 		writeJSON(w, http.StatusOK, pairDTO(userID, targetID, state))
 	})
-}
-
-func writeNotImplemented(w http.ResponseWriter) {
-	writeError(w, http.StatusNotImplemented, "not_implemented", "sprint 3 handler is not implemented")
 }
