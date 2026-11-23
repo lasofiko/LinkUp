@@ -53,6 +53,9 @@ func (s *ReactService) React(ctx context.Context, fromUserID, toUserID int) (int
 	}
 
 	apply := func(state interaction.State) (interaction.State, bool, error) {
+		if state.Blocked {
+			return interaction.State{}, false, ErrPairBlocked
+		}
 		if state.Pair != (interaction.Pair{}) && state.Pair != pair {
 			return interaction.State{}, false, fmt.Errorf("load reaction pair %v: %w", pair, interaction.ErrStatePair)
 		}
