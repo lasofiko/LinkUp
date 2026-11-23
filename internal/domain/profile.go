@@ -5,4 +5,5 @@ type Profile struct {
 	City      string
 	Interests []Interest
 	Available bool
+	Version   int64
 }

@@ -10,4 +10,7 @@ var (
 	ErrEmptyInterest       = errors.New("interest must not be empty")
 	ErrSelfReaction        = errors.New("cannot react to yourself")
 	ErrInvalidReactionType = errors.New("invalid reaction type")
+	ErrInvalidProfileEdit  = errors.New("invalid profile edit")
+	ErrProfileForbidden    = errors.New("profile edit forbidden")
+	ErrVersionConflict     = errors.New("profile version conflict")
 )
