@@ -6,11 +6,28 @@ import (
 	"log"
 
 	"github.com/lasofiko/LinkUp/internal/domain"
+	"github.com/lasofiko/LinkUp/internal/interaction"
 	"github.com/lasofiko/LinkUp/internal/matching"
 	"github.com/lasofiko/LinkUp/internal/repository/memory"
+	"github.com/lasofiko/LinkUp/internal/usecase"
 )
 
 func main() {
+	ctx := context.Background()
+
+	store := interaction.NewMemory()
+
+	userRepo := memory.NewUserRepository()
+	for i := 1; i <= 6; i++ {
+		err := userRepo.Create(domain.User{
+			ID:   i,
+			Name: fmt.Sprintf("User %d", i),
+		})
+		if err != nil {
+			log.Fatalf("failed to create user %d: %v", i, err)
+		}
+	}
+
 	profiles := []domain.Profile{
 		{UserID: 1, City: "Москва", Interests: interests("go", "listening to music", "videogames"), Available: true},
 		{UserID: 2, City: "Москва", Interests: interests("go", "videogames", "playing chess"), Available: true},
@@ -19,24 +36,56 @@ func main() {
 		{UserID: 5, City: "Москва", Interests: interests("go", "listening to music"), Available: false},
 		{UserID: 6, City: "Москва", Interests: interests("playing chess", "cooking"), Available: true},
 	}
+	profileRepo := memory.NewProfiles(profiles)
 
-	repo := memory.NewProfiles(profiles)
-	service := matching.NewDiscoveryService(repo)
+	baseDiscovery := matching.NewDiscoveryService(profileRepo)
+	discoverySvc := usecase.NewPairDiscoveryService(baseDiscovery, store)
 
-	const targetID = 1
+	reactSvc := usecase.NewReactService(userRepo, profileRepo, store)
 
-	result, err := service.Recommend(context.Background(), targetID)
+	userA := 1
+	userB := 2
+
+	fmt.Println("1. Starting state")
+	printDiscovery(ctx, discoverySvc, userA)
+	printDiscovery(ctx, discoverySvc, userB)
+
+	fmt.Println("\n2. User 1 likes User 2")
+	state, err := reactSvc.React(ctx, userA, userB)
 	if err != nil {
-		log.Fatalf("recommend for user %d failed: %v", targetID, err)
+		log.Fatalf("React failed: %v", err)
 	}
+	fmt.Printf("Pair state: %+v\n", state)
 
-	fmt.Printf("suggestions for user %d:\n", targetID)
-	if len(result) == 0 {
-		fmt.Println("not found")
+	fmt.Println("\n3. state after User 1 likes User 2")
+	printDiscovery(ctx, discoverySvc, userA)
+	printDiscovery(ctx, discoverySvc, userB)
+
+	fmt.Println("\n4. User 2 returns the like to User 1, match is formed")
+	state, err = reactSvc.React(ctx, userB, userA)
+	if err != nil {
+		log.Fatalf("React failed: %v", err)
+	}
+	fmt.Printf("Pair state (IsMutual=%v): %+v\n", state.IsMutual(), state)
+
+	fmt.Println("\n5. State after the match")
+	printDiscovery(ctx, discoverySvc, userA)
+	printDiscovery(ctx, discoverySvc, userB)
+
+	fmt.Println("\n6. Repeated like is attempted")
+	state, err = reactSvc.React(ctx, userA, userB)
+	fmt.Printf("Result of the repeat: err=%v, state=%+v\n", err, state)
+}
+
+func printDiscovery(ctx context.Context, svc *usecase.PairDiscoveryService, userID int) {
+	result, err := svc.Discover(ctx, userID)
+	if err != nil {
+		log.Printf("error discovering for user %d: %v", userID, err)
 		return
 	}
+	fmt.Printf("Result for user %d (%d candidates):\n", userID, len(result))
 	for i, p := range result {
-		fmt.Printf("%d. user %d, %s, interests: %v\n", i+1, p.UserID, p.City, p.Interests)
+		fmt.Printf("  %d. user %d, %s\n", i+1, p.UserID, p.City)
 	}
 }
 

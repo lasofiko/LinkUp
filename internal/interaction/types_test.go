@@ -21,3 +21,43 @@ func TestApplyLikeKeepsOnePairAndTwoDirections(t *testing.T) {
 		t.Fatalf("repeated like: state=%#v, changed=%v, err=%v", repeated, changed, err)
 	}
 }
+
+func TestNewPairCanonicalKey(t *testing.T) {
+	t.Parallel()
+
+	forward, err := NewPair(1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reverse, err := NewPair(2, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if forward != reverse || forward != (Pair{FirstUserID: 1, SecondUserID: 2}) {
+		t.Fatalf("expected one key for (1,2) and (2,1), got %#v and %#v", forward, reverse)
+	}
+
+	if _, err := NewPair(4, 4); err != ErrSameUser {
+		t.Fatalf("same user: %v", err)
+	}
+}
+
+func TestStateKeepsDirectedLikes(t *testing.T) {
+	t.Parallel()
+
+	state := State{
+		Pair:             Pair{FirstUserID: 1, SecondUserID: 2},
+		FirstLikesSecond: true,
+	}
+	if !state.HasLike(1, 2) || state.HasLike(2, 1) || state.IsMutual() {
+		t.Fatalf("one-way like: %#v", state)
+	}
+
+	state.SecondLikesFirst = true
+	if !state.HasLike(1, 2) || !state.HasLike(2, 1) || !state.IsMutual() {
+		t.Fatalf("both directions: %#v", state)
+	}
+	if state.HasLike(1, 3) || state.HasLike(3, 2) {
+		t.Fatal("like must stay on its pair")
+	}
+}
